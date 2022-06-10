@@ -17,7 +17,7 @@ struct SocketAddress
 
 	AddressFamily addressFamily;
 	std::string address;
-	uint16_t port {};
+	uint16_t port;
 };
 
 } // namespace tomato

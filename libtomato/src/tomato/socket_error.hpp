@@ -12,6 +12,8 @@ public:
 	explicit SocketError(const std::string &_what);
 };
 
+[[nodiscard]] int socketError();
 [[nodiscard]] std::string socketErrorString();
+[[nodiscard]] std::string socketErrorString(int err);
 
 } // namespace tomato

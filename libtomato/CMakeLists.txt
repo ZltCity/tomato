@@ -13,6 +13,8 @@ add_library(libtomato STATIC
 	src/socket.cpp
 	src/socket_address.cpp
 	src/socket_error.cpp
+	src/socket_event.cpp
+	src/ssl_context.cpp
 	src/ssl_error.cpp)
 
 set_target_properties(libtomato PROPERTIES

@@ -1,57 +1,75 @@
-#include <openssl/err.h>
-
 #include "tomato/secure_wrapper.hpp"
 
 namespace tomato
 {
 
-SecureWrapper::SecureWrapper(Socket socket, const std::filesystem::path &cert, const std::filesystem::path &key)
-	: context(SSL_CTX_new(TLS_server_method()), SSL_CTX_free), ssl(nullptr, SSL_free)
+SecureWrapper::SecureWrapper(Socket socket, const SSLContext &sslContext)
+	: socket(std::move(socket)), ssl(nullptr, SSL_free)
 {
-	if (context == nullptr)
-		throw SSLError(fmt::format("Could not create SSL context. {}", sslErrorString()));
+	auto nativeContext = static_cast<SSL_CTX *>(sslContext);
 
-	if (SSL_CTX_use_certificate_file(context.get(), cert.string().c_str(), SSL_FILETYPE_PEM) != 1)
-		throw SSLError(fmt::format("Invalid certificate. {}", sslErrorString()));
-
-	if (SSL_CTX_use_PrivateKey_file(context.get(), key.string().c_str(), SSL_FILETYPE_PEM) != 1)
-		throw SSLError(fmt::format("Invalid private key. {}", sslErrorString()));
-
-	ssl.reset(SSL_new(context.get()));
+	ssl.reset(SSL_new(nativeContext));
 
 	if (ssl == nullptr)
 		throw SSLError(fmt::format("Could not create ssl object. {}", sslErrorString()));
 
-	if (SSL_set_fd(ssl.get(), static_cast<NativeSocket>(socket)) != 1)
+	if (SSL_set_fd(ssl.get(), static_cast<NativeSocket>(this->socket)) != 1)
 		throw SSLError(fmt::format("Could not set file descriptor. {}", sslErrorString()));
 
-	if (SSL_accept(ssl.get()) != 1)
-		throw SSLError(fmt::format("Could not accept secure connection. {}", sslErrorString()));
-
-	socket = std::move(socket);
+	accept();
 }
 
-SecureWrapper::SecureWrapper(SecureWrapper &&other) noexcept : context(nullptr, SSL_CTX_free), ssl(nullptr, SSL_free)
+SecureWrapper::SecureWrapper(SecureWrapper &&other) noexcept : ssl(nullptr, SSL_free)
 {
-	std::swap(ssl, other.ssl);
-	std::swap(context, other.context);
 	std::swap(socket, other.socket);
+	std::swap(ssl, other.ssl);
 }
 
 SecureWrapper &SecureWrapper::operator=(SecureWrapper &&other) noexcept
 {
-	close();
-	std::swap(ssl, other.ssl);
-	std::swap(context, other.context);
+	release();
 	std::swap(socket, other.socket);
+	std::swap(ssl, other.ssl);
 
 	return *this;
 }
 
-void SecureWrapper::close()
+void SecureWrapper::accept()
+{
+	using namespace std::chrono_literals;
+
+	auto waitForEvent = [this](SocketEvent e) {
+		if ((socket.wait(e, 30s) & e) == SocketEvent::None)
+			throw SocketError("Wait timeout expired.");
+	};
+
+	while (SSL_accept(ssl.get()) <= 0)
+	{
+		const auto err = sslError();
+
+		switch (err)
+		{
+			case SSL_ERROR_WANT_READ:
+			{
+				waitForEvent(SocketEvent::ReadyRead);
+
+				break;
+			}
+			case SSL_ERROR_WANT_WRITE:
+			{
+				waitForEvent(SocketEvent::ReadyWrite);
+
+				break;
+			}
+
+			default: throw SSLError(fmt::format("Could not accept secure connection. {}", sslErrorString()));
+		}
+	}
+}
+
+void SecureWrapper::release()
 {
 	ssl = {};
-	context = {};
 	socket = {};
 }
 

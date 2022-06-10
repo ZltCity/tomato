@@ -29,7 +29,7 @@ public:
 
 void closeSocket(SOCKET s)
 {
-	::closesocket(s);
+	closesocket(s);
 }
 
 const auto invalidSocket = INVALID_SOCKET;
@@ -38,7 +38,7 @@ const auto invalidSocket = INVALID_SOCKET;
 
 void closeSocket(int s)
 {
-	::close(s);
+	close(s);
 }
 
 const auto invalidSocket = -1;
@@ -56,7 +56,7 @@ Socket::Socket(AddressFamily af, SocketType type) : handle(invalidSocket)
 #if defined(_WIN32)
 	static auto winSock = WinSock {};
 #endif
-	handle = ::socket(static_cast<int>(af), static_cast<int>(type), 0);
+	handle = socket(static_cast<int>(af), static_cast<int>(type), 0);
 
 	if (handle == invalidSocket)
 		throw SocketError(fmt::format("Could not create socket. {}", socketErrorString()));
@@ -136,6 +136,24 @@ void Socket::close()
 	}
 }
 
+SocketEvent Socket::wait(SocketEvent events, std::chrono::milliseconds timeout) const
+{
+	using namespace std::chrono_literals;
+
+	auto fd = pollfd {handle, static_cast<short>(events)};
+
+#if defined(_WIN32)
+#define POLL WSAPoll
+#elif defined(__linux__)
+#define POLL poll
+#endif
+
+	if (POLL(&fd, 1, timeout == 0ms ? -1 : static_cast<int>(timeout.count())) < 0)
+		throw SocketError(fmt::format("Could not poll socket events. {}", socketErrorString()));
+
+	return static_cast<SocketEvent>(fd.revents);
+}
+
 Socket Socket::accept(std::chrono::milliseconds timeout) const
 {
 	auto connAddress = SocketAddress {};
@@ -145,45 +163,29 @@ Socket Socket::accept(std::chrono::milliseconds timeout) const
 
 Socket Socket::accept(SocketAddress &connAddress, std::chrono::milliseconds timeout) const
 {
-	using namespace std::chrono_literals;
+	const auto events = wait(SocketEvent::ReadyRead, timeout);
 
-	auto events = poll(POLLRDNORM, timeout == 0ms ? -1 : static_cast<int>(timeout.count()));
-
-	if ((events & POLLRDNORM) != POLLRDNORM)
-		return Socket {};
-
-	auto sas = sockaddr_storage {};
+	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
+	{
+		auto sas = sockaddr_storage {};
 
 #if defined(_WIN32)
-	auto addrLen = static_cast<int>(sizeof(sas));
+		auto addrLen = static_cast<int>(sizeof(sas));
 #elif defined(__linux__)
-	auto addrLen = static_cast<socklen_t>(sizeof(sas));
+		auto addrLen = static_cast<socklen_t>(sizeof(sas));
 #endif
 
-	auto conn = ::accept(handle, reinterpret_cast<sockaddr *>(&sas), &addrLen);
+		auto conn = ::accept(handle, reinterpret_cast<sockaddr *>(&sas), &addrLen);
 
-	if (conn == invalidSocket)
-		throw SocketError(fmt::format("Could not accept inbound connection. {}", socketErrorString()));
+		if (conn == invalidSocket)
+			throw SocketError(fmt::format("Could not accept inbound connection. {}", socketErrorString()));
 
-	connAddress = SocketAddress {sas};
+		connAddress = SocketAddress {sas};
 
-	return Socket {conn};
-}
+		return Socket {conn};
+	}
 
-short Socket::poll(short events, int timeout) const
-{
-	auto fd = pollfd {handle, events};
-
-#if defined(_WIN32)
-#define POLL WSAPoll
-#elif defined(__linux__)
-#define POLL ::poll
-#endif
-
-	if (POLL(&fd, 1, timeout) < 0)
-		throw SocketError(fmt::format("Could not poll socket events. {}", socketErrorString()));
-
-	return fd.revents;
+	return Socket {};
 }
 
 } // namespace tomato

@@ -5,13 +5,9 @@
 
 #include <fmt/format.h>
 
-#if defined(__linux__)
-#include <sys/poll.h>
-#endif
-
-#include "address_family.hpp"
 #include "socket_address.hpp"
 #include "socket_error.hpp"
+#include "socket_event.hpp"
 #include "socket_type.hpp"
 
 namespace tomato
@@ -45,6 +41,8 @@ public:
 	void listen();
 	void close();
 
+	[[nodiscard]] SocketEvent wait(SocketEvent events, std::chrono::milliseconds timeout = {}) const;
+
 	[[nodiscard]] Socket accept(std::chrono::milliseconds timeout = {}) const;
 	[[nodiscard]] Socket accept(SocketAddress &connAddress, std::chrono::milliseconds timeout = {}) const;
 
@@ -52,27 +50,25 @@ public:
 	size_t receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
 
 private:
-	[[nodiscard]] short poll(short events, int timeout) const;
-
 	NativeSocket handle;
 };
 
 template<size_t size>
 size_t Socket::receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
 {
-	using namespace std::chrono_literals;
+	const auto events = wait(SocketEvent::ReadyRead, timeout);
 
-	auto events = poll(POLLRDNORM, timeout == 0ms ? -1 : static_cast<int>(timeout.count()));
+	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
+	{
+		auto received = ::recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
 
-	if ((events & POLLRDNORM) != POLLRDNORM)
-		return 0;
+		if (received < 0)
+			throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
 
-	auto received = ::recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
+		return static_cast<size_t>(received);
+	}
 
-	if (received < 0)
-		throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
-
-	return static_cast<size_t>(received);
+	return 0;
 }
 
 } // namespace tomato
