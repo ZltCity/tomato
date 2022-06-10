@@ -54,7 +54,7 @@ public:
 private:
 	[[nodiscard]] short poll(short events, int timeout) const;
 
-	NativeSocket handler;
+	NativeSocket handle;
 };
 
 template<size_t size>
@@ -67,7 +67,7 @@ size_t Socket::receive(std::array<std::byte, size> &buffer, std::chrono::millise
 	if ((events & POLLRDNORM) != POLLRDNORM)
 		return 0;
 
-	auto received = ::recv(handler, reinterpret_cast<char *>(buffer.data()), size, 0);
+	auto received = ::recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
 
 	if (received < 0)
 		throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));

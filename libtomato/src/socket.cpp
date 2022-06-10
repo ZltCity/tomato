@@ -45,22 +45,20 @@ const auto invalidSocket = -1;
 
 #endif
 
-Socket::Socket() : handler(invalidSocket)
-{
-}
+Socket::Socket() : handle(invalidSocket)
+{}
 
-Socket::Socket(NativeSocket other) : handler(other)
-{
-}
+Socket::Socket(NativeSocket other) : handle(other)
+{}
 
-Socket::Socket(AddressFamily af, SocketType type) : handler(invalidSocket)
+Socket::Socket(AddressFamily af, SocketType type) : handle(invalidSocket)
 {
 #if defined(_WIN32)
 	static auto winSock = WinSock {};
 #endif
-	handler = ::socket(static_cast<int>(af), static_cast<int>(type), 0);
+	handle = ::socket(static_cast<int>(af), static_cast<int>(type), 0);
 
-	if (handler == invalidSocket)
+	if (handle == invalidSocket)
 		throw SocketError(fmt::format("Could not create socket. {}", socketErrorString()));
 
 #if defined(_WIN32)
@@ -71,9 +69,9 @@ Socket::Socket(AddressFamily af, SocketType type) : handler(invalidSocket)
 	auto mode = int {1};
 #endif
 
-	if (IOCTL(handler, FIONBIO, &mode) != 0)
+	if (IOCTL(handle, FIONBIO, &mode) != 0)
 	{
-		closeSocket(handler);
+		closeSocket(handle);
 
 		throw SocketError(fmt::format("Could not set IO control option. {}", socketErrorString()));
 	}
@@ -81,9 +79,9 @@ Socket::Socket(AddressFamily af, SocketType type) : handler(invalidSocket)
 #undef IOCTL
 }
 
-Socket::Socket(Socket &&other) noexcept : handler(invalidSocket)
+Socket::Socket(Socket &&other) noexcept : handle(invalidSocket)
 {
-	std::swap(handler, other.handler);
+	std::swap(handle, other.handle);
 }
 
 Socket::~Socket()
@@ -94,46 +92,47 @@ Socket::~Socket()
 Socket &Socket::operator=(Socket &&other) noexcept
 {
 	close();
-	std::swap(handler, other.handler);
+	std::swap(handle, other.handle);
 
 	return *this;
 }
 
 bool Socket::operator==(const Socket &other) const
 {
-	return handler == other.handler;
+	return handle == other.handle;
 }
 
 bool Socket::operator==(NativeSocket other) const
 {
-	return handler == other;
+	return handle == other;
 }
 
 Socket::operator NativeSocket() const
 {
-	return handler;
+	return handle;
 }
 
 void Socket::bind(const SocketAddress &address)
 {
 	const auto sas = static_cast<sockaddr_storage>(address);
 
-	if (::bind(handler, reinterpret_cast<const sockaddr *>(&sas), sizeof(sas)) != 0)
+	if (::bind(handle, reinterpret_cast<const sockaddr *>(&sas), sizeof(sas)) != 0)
 		throw SocketError(fmt::format("Could not bind socket. {}", socketErrorString()));
 }
 
 void Socket::listen()
 {
-	if (::listen(handler, SOMAXCONN) != 0)
+	if (::listen(handle, SOMAXCONN) != 0)
 		throw SocketError(fmt::format("Could not set listen state. {}", socketErrorString()));
 }
 
 void Socket::close()
 {
-	if (handler != invalidSocket)
+	if (handle != invalidSocket)
 	{
-		closeSocket(handler);
-		handler = invalidSocket;
+		closeSocket(handle);
+
+		handle = invalidSocket;
 	}
 }
 
@@ -161,7 +160,7 @@ Socket Socket::accept(SocketAddress &connAddress, std::chrono::milliseconds time
 	auto addrLen = static_cast<socklen_t>(sizeof(sas));
 #endif
 
-	auto conn = ::accept(handler, reinterpret_cast<sockaddr *>(&sas), &addrLen);
+	auto conn = ::accept(handle, reinterpret_cast<sockaddr *>(&sas), &addrLen);
 
 	if (conn == invalidSocket)
 		throw SocketError(fmt::format("Could not accept inbound connection. {}", socketErrorString()));
@@ -173,7 +172,7 @@ Socket Socket::accept(SocketAddress &connAddress, std::chrono::milliseconds time
 
 short Socket::poll(short events, int timeout) const
 {
-	auto fd = pollfd {handler, events};
+	auto fd = pollfd {handle, events};
 
 #if defined(_WIN32)
 #define POLL WSAPoll
