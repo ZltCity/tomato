@@ -8,6 +8,7 @@
 #include "socket_address.hpp"
 #include "socket_error.hpp"
 #include "socket_event.hpp"
+#include "socket_shutdown.hpp"
 #include "socket_type.hpp"
 
 namespace tomato
@@ -39,6 +40,7 @@ public:
 
 	void bind(const SocketAddress &address);
 	void listen();
+	void shutdown(SocketShutdown how);
 	void close();
 
 	[[nodiscard]] SocketEvent wait(SocketEvent events, std::chrono::milliseconds timeout = {}) const;

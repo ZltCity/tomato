@@ -126,6 +126,12 @@ void Socket::listen()
 		throw SocketError(fmt::format("Could not set listen state. {}", socketErrorString()));
 }
 
+void Socket::shutdown(SocketShutdown how)
+{
+	if (::shutdown(handle, static_cast<int>(how)) != 0)
+		throw SocketError(fmt::format("Could not shutdown the socket. {}", socketErrorString()));
+}
+
 void Socket::close()
 {
 	if (handle != invalidSocket)

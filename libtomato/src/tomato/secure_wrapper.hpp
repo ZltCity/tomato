@@ -22,6 +22,8 @@ public:
 	SecureWrapper &operator=(const SecureWrapper &) = delete;
 	SecureWrapper &operator=(SecureWrapper &&other) noexcept;
 
+	void shutdown();
+
 	template<size_t size>
 	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
 
