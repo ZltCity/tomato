@@ -46,10 +46,12 @@ const auto invalidSocket = -1;
 #endif
 
 Socket::Socket() : handle(invalidSocket)
-{}
+{
+}
 
 Socket::Socket(NativeSocket other) : handle(other)
-{}
+{
+}
 
 Socket::Socket(AddressFamily af, SocketType type) : handle(invalidSocket)
 {

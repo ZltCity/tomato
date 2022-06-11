@@ -6,10 +6,12 @@ namespace tomato
 {
 
 SSLError::SSLError(const char *_what) : std::runtime_error(_what)
-{}
+{
+}
 
 SSLError::SSLError(const std::string &_what) : std::runtime_error(_what)
-{}
+{
+}
 
 unsigned long sslError()
 {
