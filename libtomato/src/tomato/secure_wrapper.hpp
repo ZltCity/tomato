@@ -23,32 +23,32 @@ public:
 	SecureWrapper &operator=(SecureWrapper &&other) noexcept;
 
 	template<size_t size>
-	size_t receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
+	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
+
+	static const uint32_t defaultTimeout = 30; // ms
 
 private:
 	void accept();
 	void release();
+	void waitSocket(int retCode) const;
 
 	Socket socket;
-	std::unique_ptr<::SSL, void (*)(::SSL *)> ssl;
+	std::unique_ptr<::SSL, void (*)(SSL *)> ssl;
 };
 
 template<size_t size>
-size_t SecureWrapper::receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
+size_t SecureWrapper::read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
 {
-	const auto events = socket.wait(SocketEvent::ReadyRead, timeout);
+	sslClearErrorStack();
 
-	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
+	auto received = int {};
+
+	while ((received = SSL_read(ssl.get(), buffer.data(), size)) <= 0)
 	{
-		auto received = SSL_read(ssl.get(), buffer.data(), buffer.size());
-
-		if (received < 0)
-			throw SocketError(fmt::format("Could not read data. {}", sslErrorString()));
-
-		return static_cast<size_t>(received);
+		waitSocket(SSL_get_error(ssl.get(), received));
 	}
 
-	return 0;
+	return received;
 }
 
 } // namespace tomato

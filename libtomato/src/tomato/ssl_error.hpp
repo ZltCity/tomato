@@ -17,4 +17,6 @@ public:
 [[nodiscard]] std::string sslErrorString();
 [[nodiscard]] std::string sslErrorString(unsigned long err);
 
+void sslClearErrorStack();
+
 } // namespace tomato

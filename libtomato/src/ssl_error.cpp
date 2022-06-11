@@ -30,4 +30,10 @@ std::string sslErrorString(unsigned long err)
 	return message;
 }
 
+void sslClearErrorStack()
+{
+	while (ERR_get_error() != 0)
+		;
+}
+
 } // namespace tomato

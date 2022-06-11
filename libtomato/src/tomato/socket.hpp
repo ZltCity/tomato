@@ -47,25 +47,25 @@ public:
 	[[nodiscard]] Socket accept(SocketAddress &connAddress, std::chrono::milliseconds timeout = {}) const;
 
 	template<size_t size>
-	size_t receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
+	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
 
 private:
 	NativeSocket handle;
 };
 
 template<size_t size>
-size_t Socket::receive(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
+size_t Socket::read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
 {
 	const auto events = wait(SocketEvent::ReadyRead, timeout);
 
 	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
 	{
-		auto received = ::recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
+		const auto received = recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
 
 		if (received < 0)
 			throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
 
-		return static_cast<size_t>(received);
+		return received;
 	}
 
 	return 0;
