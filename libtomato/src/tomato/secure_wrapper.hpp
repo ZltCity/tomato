@@ -26,6 +26,8 @@ public:
 
 	template<size_t size>
 	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
+	template<size_t size>
+	size_t write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {});
 
 	static const uint32_t defaultTimeout = 30; // ms
 
@@ -51,6 +53,21 @@ size_t SecureWrapper::read(std::array<std::byte, size> &buffer, std::chrono::mil
 	}
 
 	return received;
+}
+
+template<size_t size>
+size_t SecureWrapper::write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout)
+{
+	sslClearErrorStack();
+
+	auto sent = int {};
+
+	while ((sent = SSL_write(ssl.get(), buffer.data(), size)) <= 0)
+	{
+		waitSocket(SSL_get_error(ssl.get(), sent));
+	}
+
+	return sent;
 }
 
 } // namespace tomato

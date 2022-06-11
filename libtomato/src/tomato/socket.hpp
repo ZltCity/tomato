@@ -50,6 +50,8 @@ public:
 
 	template<size_t size>
 	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
+	template<size_t size>
+	size_t write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {});
 
 private:
 	NativeSocket handle;
@@ -68,6 +70,24 @@ size_t Socket::read(std::array<std::byte, size> &buffer, std::chrono::millisecon
 			throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
 
 		return received;
+	}
+
+	return 0;
+}
+
+template<size_t size>
+size_t Socket::write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout)
+{
+	const auto events = wait(SocketEvent::ReadyWrite, timeout);
+
+	if ((events & SocketEvent::ReadyWrite) != SocketEvent::None)
+	{
+		const auto sent = send(handle, reinterpret_cast<const char *>(buffer.data()), size, 0);
+
+		if (sent < 0)
+			throw SocketError(fmt::format("Could not write data. {}", socketErrorString()));
+
+		return sent;
 	}
 
 	return 0;
