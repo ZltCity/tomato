@@ -33,10 +33,18 @@ int main()
 
 			auto secure = tomato::SecureWrapper(std::move(conn), sslContext);
 			auto buffer = std::array<std::byte, 1024> {};
-			auto received = secure.receive(buffer, 10s);
+			auto received = secure.read(buffer, 10s);
 
 			if (received > 0)
 				std::cout << std::string_view(reinterpret_cast<const char *>(buffer.data()), received) << std::endl;
+
+			const auto data = std::string {"HTTP/1.1 200 ok\r\nConnection: close\r\n"};
+
+			buffer = {};
+			std::transform(
+				data.begin(), data.end(), buffer.begin(), [](char ch) -> std::byte { return std::byte(ch); });
+			secure.write(buffer);
+			secure.shutdown();
 		}
 		else
 			break;
