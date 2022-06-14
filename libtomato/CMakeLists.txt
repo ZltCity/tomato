@@ -9,6 +9,8 @@ elseif (WIN32)
 endif ()
 
 add_library(libtomato STATIC
+	src/listener.cpp
+	src/queue_error.cpp
 	src/secure_wrapper.cpp
 	src/socket.cpp
 	src/socket_address.cpp
