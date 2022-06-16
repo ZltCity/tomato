@@ -25,15 +25,6 @@ int main()
 	auto conn = tomato::Socket {};
 	auto connAddress = tomato::SocketAddress {};
 
-	auto q = tomato::threading::Queue<int> {1};
-
-	q.close();
-	q.push(128);
-	q.push(256);
-	q.push(384);
-	q.close();
-
-
 	do
 	{
 		conn = sock.accept(connAddress, 30s);

@@ -58,29 +58,25 @@ void Queue<T>::push(T value, bool block)
 template<class T>
 T Queue<T>::get(bool block)
 {
-	auto getValue = [this]() -> T {
-		auto value = std::move(queue.front());
-
-		queue.pop();
-		getNotification.notify_one();
-
-		return value;
-	};
 	auto lock = std::unique_lock {accessMutex};
 
-	if (!queue.empty())
-		return getValue();
-	else if (block)
-	{
-		pushNotification.wait(lock, [this]() -> bool { return closed || (!queue.empty()); });
+	if (block)
+		pushNotification.wait(lock, [this]() -> bool { return closed || !queue.empty(); });
 
+	if (queue.empty())
+	{
 		if (closed)
 			throw InvalidQueue();
-		else
-			return getValue();
+		else if (!block)
+			throw EmptyQueue();
 	}
-	else
-		throw EmptyQueue();
+
+	auto value = std::move(queue.front());
+
+	queue.pop();
+	getNotification.notify_one();
+
+	return value;
 }
 
 template<class T>
