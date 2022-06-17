@@ -31,12 +31,15 @@ int main()
 	auto worker = tomato::threading::Worker([connQueue]() {
 		using namespace tomato;
 
-		try{
+		try
+		{
 			auto [conn, connAddress] = connQueue->get();
 
 			std::cout << fmt::format("address: {}, port: {}", connAddress.address, connAddress.port) << std::endl;
-		} catch (const tomato::threading::InvalidQueue &)
-		{}
+		}
+		catch (const tomato::InvalidQueue &)
+		{
+		}
 	});
 
 	std::this_thread::sleep_for(10s);

@@ -1,6 +1,6 @@
-#include "tomato/threading/queue_error.hpp"
+#include "tomato/queue_error.hpp"
 
-namespace tomato::threading
+namespace tomato
 {
 
 InvalidQueue::InvalidQueue() : std::runtime_error("Invalid queue.")
@@ -15,4 +15,4 @@ FullQueue::FullQueue() : std::runtime_error("Queue is full.")
 {
 }
 
-} // namespace tomato::threading
+} // namespace tomato

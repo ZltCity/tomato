@@ -4,7 +4,7 @@
 #include <mutex>
 #include <queue>
 
-#include "queue_error.hpp"
+#include "tomato/queue_error.hpp"
 
 namespace tomato::threading
 {

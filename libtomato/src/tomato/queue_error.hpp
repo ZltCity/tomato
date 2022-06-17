@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace tomato::threading
+namespace tomato
 {
 
 class InvalidQueue : public std::runtime_error
@@ -23,4 +23,4 @@ public:
 	FullQueue();
 };
 
-} // namespace tomato::threading
+} // namespace tomato
