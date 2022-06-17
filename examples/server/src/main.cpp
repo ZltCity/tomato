@@ -15,42 +15,58 @@ int main()
 {
 	using namespace std::chrono_literals;
 
-	auto sslContext = tomato::SSLContext(std::getenv("TOMATO_CERT"), std::getenv("TOMATO_CERT_KEY"));
-	auto sock = tomato::Socket {tomato::AddressFamily::Inet, tomato::SocketType::Stream};
-	auto hostAddr = tomato::SocketAddress {tomato::AddressFamily::Inet, "127.0.0.1", 443};
+	//	auto sslContext = tomato::SSLContext(std::getenv("TOMATO_CERT"), std::getenv("TOMATO_CERT_KEY"));
+	//	auto sock = tomato::Socket {tomato::AddressFamily::Inet, tomato::SocketType::Stream};
+	auto hostAddr = tomato::SocketAddress {tomato::AddressFamily::Inet, "127.0.0.1", 8080};
 
-	sock.bind(hostAddr);
-	sock.listen();
+	//	sock.bind(hostAddr);
+	//	sock.listen();
 
-	auto conn = tomato::Socket {};
-	auto connAddress = tomato::SocketAddress {};
+	//	auto conn = tomato::Socket {};
+	//	auto connAddress = tomato::SocketAddress {};
 
-	do
-	{
-		conn = sock.accept(connAddress, 30s);
+	auto connQueue = tomato::makeConnectionQueue();
+	auto listener = tomato::Listener {hostAddr, connQueue};
+	auto listener2 = std::move(listener);
+	auto worker = tomato::threading::Worker([connQueue]() {
+		using namespace tomato;
 
-		if (conn != tomato::Socket {})
-		{
+		try{
+			auto [conn, connAddress] = connQueue->get();
+
 			std::cout << fmt::format("address: {}, port: {}", connAddress.address, connAddress.port) << std::endl;
+		} catch (const tomato::threading::InvalidQueue &)
+		{}
+	});
 
-			auto secure = tomato::SecureWrapper(std::move(conn), sslContext);
-			auto buffer = std::array<std::byte, 1024> {};
-			auto received = secure.read(buffer, 10s);
-
-			if (received > 0)
-				std::cout << std::string_view(reinterpret_cast<const char *>(buffer.data()), received) << std::endl;
-
-			const auto data = std::string {"HTTP/1.1 200 ok\r\nConnection: close\r\n"};
-
-			buffer = {};
-			std::transform(
-				data.begin(), data.end(), buffer.begin(), [](char ch) -> std::byte { return std::byte(ch); });
-			secure.write(buffer);
-			secure.shutdown();
-		}
-		else
-			break;
-	} while (true);
+	std::this_thread::sleep_for(10s);
+	connQueue->close();
+	//	do
+	//	{
+	//		conn = sock.accept(connAddress, 30s);
+	//
+	//		if (conn != tomato::Socket {})
+	//		{
+	//			std::cout << fmt::format("address: {}, port: {}", connAddress.address, connAddress.port) << std::endl;
+	//
+	//			auto secure = tomato::SecureWrapper(std::move(conn), sslContext);
+	//			auto buffer = std::array<std::byte, 1024> {};
+	//			auto received = secure.read(buffer, 10s);
+	//
+	//			if (received > 0)
+	//				std::cout << std::string_view(reinterpret_cast<const char *>(buffer.data()), received) << std::endl;
+	//
+	//			const auto data = std::string {"HTTP/1.1 200 ok\r\nConnection: close\r\n"};
+	//
+	//			buffer = {};
+	//			std::transform(
+	//				data.begin(), data.end(), buffer.begin(), [](char ch) -> std::byte { return std::byte(ch); });
+	//			secure.write(buffer);
+	//			secure.shutdown();
+	//		}
+	//		else
+	//			break;
+	//	} while (true);
 
 	return 0;
 }

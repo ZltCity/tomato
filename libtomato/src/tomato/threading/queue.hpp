@@ -4,7 +4,6 @@
 #include <mutex>
 #include <queue>
 
-#include "../auto_counter.hpp"
 #include "queue_error.hpp"
 
 namespace tomato::threading
@@ -25,6 +24,8 @@ public:
 	void close();
 
 private:
+	[[nodiscard]] bool isFull() const;
+
 	std::condition_variable pushNotification, getNotification;
 	std::mutex accessMutex;
 	std::queue<T> queue;
@@ -43,12 +44,12 @@ void Queue<T>::push(T value, bool block)
 	auto lock = std::unique_lock {accessMutex};
 
 	if (block)
-		getNotification.wait(lock, [this]() -> bool { return closed || (queue.size() < maxSize); });
+		getNotification.wait(lock, [this]() -> bool { return closed || !isFull(); });
 
 	if (closed)
 		throw InvalidQueue();
 
-	if (!block && queue.size() >= maxSize)
+	if (!block && isFull())
 		throw FullQueue();
 
 	queue.push(std::move(value));
@@ -87,6 +88,12 @@ void Queue<T>::close()
 	closed = true;
 	pushNotification.notify_all();
 	getNotification.notify_all();
+}
+
+template<class T>
+bool Queue<T>::isFull() const
+{
+	return maxSize > 0 && queue.size() >= maxSize;
 }
 
 } // namespace tomato::threading

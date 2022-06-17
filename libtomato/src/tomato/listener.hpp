@@ -1,20 +1,31 @@
 #pragma once
 
-#include <memory>
-#include <tuple>
-
-#include "socket.hpp"
-#include "threading/queue.hpp"
+#include "connection_queue.hpp"
+#include "threading/worker.hpp"
 
 namespace tomato
 {
 
-class Listener
+class Listener final : public threading::Worker
 {
 public:
-	using Connection = std::tuple<Socket, SocketAddress>;
+	Listener(const SocketAddress &bindAddress, ConnectionQueue queue);
+	Listener(const Listener &) = delete;
+	Listener(Listener &&other) noexcept = default;
 
-	Listener(const SocketAddress &bindAddress, std::shared_ptr<threading::Queue<Connection>> queue);
+	Listener &operator=(const Listener &) = delete;
+	Listener &operator=(Listener &&other) noexcept = default;
+
+	static const uint32_t defaultTimeout = 30; // ms
+
+private:
+	struct Context
+	{
+		Context(const SocketAddress &bindAddress, ConnectionQueue queue);
+
+		Socket socket;
+		ConnectionQueue queue;
+	};
 };
 
 } // namespace tomato

@@ -9,6 +9,7 @@ elseif (WIN32)
 endif ()
 
 add_library(libtomato STATIC
+	src/connection_queue.cpp
 	src/listener.cpp
 	src/queue_error.cpp
 	src/secure_wrapper.cpp
@@ -17,7 +18,8 @@ add_library(libtomato STATIC
 	src/socket_error.cpp
 	src/socket_event.cpp
 	src/ssl_context.cpp
-	src/ssl_error.cpp)
+	src/ssl_error.cpp
+	src/worker.cpp)
 
 set_target_properties(libtomato PROPERTIES
 	CXX_STANDARD 23
