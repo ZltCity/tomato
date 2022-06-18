@@ -21,7 +21,16 @@ Listener::Listener(const SocketAddress &bindAddress, ConnectionQueue queue)
 			  clientSocket = ctx->socket.accept(clientAddress, std::chrono::milliseconds {defaultTimeout});
 
 			  if (clientSocket != Socket {})
-				  ctx->queue->push(std::move(connection));
+				  try
+				  {
+					  ctx->queue->push(std::move(connection));
+				  }
+				  catch (const InvalidQueue &)
+				  {
+					  return false;
+				  }
+
+			  return true;
 		  },
 		  std::make_shared<Context>(bindAddress, std::move(queue))))
 {
