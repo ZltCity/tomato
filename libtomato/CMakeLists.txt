@@ -9,6 +9,7 @@ elseif (WIN32)
 endif ()
 
 add_library(libtomato STATIC
+	src/config.cpp
 	src/connection_queue.cpp
 	src/listener.cpp
 	src/queue_error.cpp
@@ -26,8 +27,9 @@ set_target_properties(libtomato PROPERTIES
 	CXX_STANDARD_REQUIRED ON)
 target_include_directories(libtomato PUBLIC
 	src)
-target_link_libraries(libtomato PRIVATE
+target_link_libraries(libtomato PUBLIC
 	fmt::fmt-header-only
-	nlohmann_json::nlohmann_json
+	nlohmann_json::nlohmann_json)
+target_link_libraries(libtomato PRIVATE
 	OpenSSL::SSL
 	${PLATFORM_LIBRARIES})
