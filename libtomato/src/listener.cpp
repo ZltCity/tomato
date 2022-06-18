@@ -14,7 +14,7 @@ Listener::Context::Context(const SocketAddress &bindAddress, ConnectionQueue que
 
 Listener::Listener(const SocketAddress &bindAddress, ConnectionQueue queue)
 	: Worker(std::bind(
-		  [](std::shared_ptr<Context> ctx) {
+		  [](std::shared_ptr<Context> ctx) -> bool {
 			  auto connection = Connection {};
 			  auto &[clientSocket, clientAddress] = connection;
 

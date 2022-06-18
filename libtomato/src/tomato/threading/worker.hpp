@@ -11,7 +11,7 @@ namespace tomato::threading
 class Worker
 {
 public:
-	using Routine = std::function<void()>;
+	using Routine = std::function<bool()>;
 
 	explicit Worker(const Routine &routine);
 	Worker(const Worker &) = delete;

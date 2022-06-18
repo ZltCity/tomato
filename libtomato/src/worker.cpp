@@ -6,7 +6,18 @@ namespace tomato::threading
 Worker::Context::Context(const Routine &routine)
 	: thread([this, routine]() {
 		  while (alive.test())
-			  routine();
+			  try
+			  {
+				  if (!routine())
+				  {
+					  alive.clear();
+					  break;
+				  }
+			  }
+			  catch (...)
+			  {
+				  /* TODO: add logging. */
+			  }
 	  }),
 	  alive {true}
 {
