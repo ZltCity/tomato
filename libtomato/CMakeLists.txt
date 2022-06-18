@@ -12,6 +12,7 @@ add_library(libtomato STATIC
 	src/config.cpp
 	src/connection_queue.cpp
 	src/listener.cpp
+	src/pipe.cpp
 	src/queue_error.cpp
 	src/secure_wrapper.cpp
 	src/socket.cpp
