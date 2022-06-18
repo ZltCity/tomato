@@ -18,6 +18,7 @@ add_library(libtomato STATIC
 	src/socket_address.cpp
 	src/socket_error.cpp
 	src/socket_event.cpp
+	src/ssl_check.cpp
 	src/ssl_context.cpp
 	src/ssl_error.cpp
 	src/worker.cpp)
