@@ -5,6 +5,7 @@
 
 #include <fmt/format.h>
 
+#include "pipe.hpp"
 #include "socket_address.hpp"
 #include "socket_error.hpp"
 #include "socket_event.hpp"
@@ -20,7 +21,7 @@ using NativeSocket = SOCKET;
 using NativeSocket = int;
 #endif
 
-class Socket
+class Socket final : public Pipe
 {
 public:
 	Socket();
@@ -28,7 +29,7 @@ public:
 	Socket(AddressFamily af, SocketType type);
 	Socket(const Socket &) = delete;
 	Socket(Socket &&other) noexcept;
-	~Socket();
+	~Socket() final;
 
 	Socket &operator=(const Socket &) = delete;
 	Socket &operator=(Socket &&other) noexcept;
@@ -48,49 +49,11 @@ public:
 	[[nodiscard]] Socket accept(std::chrono::milliseconds timeout = {}) const;
 	[[nodiscard]] Socket accept(SocketAddress &connAddress, std::chrono::milliseconds timeout = {}) const;
 
-	template<size_t size>
-	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
-	template<size_t size>
-	size_t write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {});
+	size_t read(std::byte *buffer, size_t length, std::chrono::milliseconds timeout, bool peek) final;
+	size_t write(const std::byte *buffer, size_t length, std::chrono::milliseconds timeout) final;
 
 private:
 	NativeSocket handle;
 };
-
-template<size_t size>
-size_t Socket::read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
-{
-	const auto events = wait(SocketEvent::ReadyRead, timeout);
-
-	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
-	{
-		const auto received = recv(handle, reinterpret_cast<char *>(buffer.data()), size, 0);
-
-		if (received < 0)
-			throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
-
-		return received;
-	}
-
-	return 0;
-}
-
-template<size_t size>
-size_t Socket::write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout)
-{
-	const auto events = wait(SocketEvent::ReadyWrite, timeout);
-
-	if ((events & SocketEvent::ReadyWrite) != SocketEvent::None)
-	{
-		const auto sent = send(handle, reinterpret_cast<const char *>(buffer.data()), size, 0);
-
-		if (sent < 0)
-			throw SocketError(fmt::format("Could not write data. {}", socketErrorString()));
-
-		return sent;
-	}
-
-	return 0;
-}
 
 } // namespace tomato

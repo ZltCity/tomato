@@ -50,6 +50,35 @@ void SecureWrapper::shutdown()
 	}
 }
 
+size_t SecureWrapper::read(std::byte *buffer, size_t length, std::chrono::milliseconds timeout, bool peek)
+{
+	sslClearErrorStack();
+
+	int (*readFunction)(SSL *, void *, int) = peek ? SSL_peek : SSL_read;
+	auto received = int {};
+
+	while ((received = readFunction(ssl.get(), buffer, static_cast<int>(length))) <= 0)
+	{
+		waitSocket(SSL_get_error(ssl.get(), received));
+	}
+
+	return received;
+}
+
+size_t SecureWrapper::write(const std::byte *buffer, size_t length, std::chrono::milliseconds timeout)
+{
+	sslClearErrorStack();
+
+	auto sent = int {};
+
+	while ((sent = SSL_write(ssl.get(), buffer, static_cast<int>(length))) <= 0)
+	{
+		waitSocket(SSL_get_error(ssl.get(), sent));
+	}
+
+	return sent;
+}
+
 void SecureWrapper::accept()
 {
 	sslClearErrorStack();

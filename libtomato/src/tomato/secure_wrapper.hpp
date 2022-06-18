@@ -12,7 +12,7 @@
 namespace tomato
 {
 
-class SecureWrapper
+class SecureWrapper final : public Pipe
 {
 public:
 	SecureWrapper(Socket socket, const SSLContext &sslContext);
@@ -24,10 +24,8 @@ public:
 
 	void shutdown();
 
-	template<size_t size>
-	size_t read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {}) const;
-	template<size_t size>
-	size_t write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout = {});
+	size_t read(std::byte *buffer, size_t length, std::chrono::milliseconds timeout, bool peek) final;
+	size_t write(const std::byte *buffer, size_t length, std::chrono::milliseconds timeout) final;
 
 	static const uint32_t defaultTimeout = 30; // ms
 
@@ -39,35 +37,5 @@ private:
 	Socket socket;
 	std::unique_ptr<::SSL, void (*)(SSL *)> ssl;
 };
-
-template<size_t size>
-size_t SecureWrapper::read(std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout) const
-{
-	sslClearErrorStack();
-
-	auto received = int {};
-
-	while ((received = SSL_read(ssl.get(), buffer.data(), size)) <= 0)
-	{
-		waitSocket(SSL_get_error(ssl.get(), received));
-	}
-
-	return received;
-}
-
-template<size_t size>
-size_t SecureWrapper::write(const std::array<std::byte, size> &buffer, std::chrono::milliseconds timeout)
-{
-	sslClearErrorStack();
-
-	auto sent = int {};
-
-	while ((sent = SSL_write(ssl.get(), buffer.data(), size)) <= 0)
-	{
-		waitSocket(SSL_get_error(ssl.get(), sent));
-	}
-
-	return sent;
-}
 
 } // namespace tomato

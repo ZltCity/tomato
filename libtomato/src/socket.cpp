@@ -196,4 +196,39 @@ Socket Socket::accept(SocketAddress &connAddress, std::chrono::milliseconds time
 	return Socket {};
 }
 
+size_t Socket::read(std::byte *buffer, size_t length, std::chrono::milliseconds timeout, bool peek)
+{
+	const auto events = wait(SocketEvent::ReadyRead, timeout);
+
+	if ((events & SocketEvent::ReadyRead) != SocketEvent::None)
+	{
+		const auto received =
+			recv(handle, reinterpret_cast<char *>(buffer), static_cast<int>(length), peek ? MSG_PEEK : 0);
+
+		if (received < 0)
+			throw SocketError(fmt::format("Could not read data. {}", socketErrorString()));
+
+		return received;
+	}
+
+	return 0;
+}
+
+size_t Socket::write(const std::byte *buffer, size_t length, std::chrono::milliseconds timeout)
+{
+	const auto events = wait(SocketEvent::ReadyWrite, timeout);
+
+	if ((events & SocketEvent::ReadyWrite) != SocketEvent::None)
+	{
+		const auto sent = send(handle, reinterpret_cast<const char *>(buffer), static_cast<int>(length), 0);
+
+		if (sent < 0)
+			throw SocketError(fmt::format("Could not write data. {}", socketErrorString()));
+
+		return sent;
+	}
+
+	return 0;
+}
+
 } // namespace tomato
