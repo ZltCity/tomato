@@ -32,7 +32,7 @@ public:
 private:
 	void accept();
 	void release();
-	void waitSocket(int retCode) const;
+	bool waitSocket(int retCode) const;
 
 	Socket socket;
 	std::unique_ptr<::SSL, void (*)(SSL *)> ssl;

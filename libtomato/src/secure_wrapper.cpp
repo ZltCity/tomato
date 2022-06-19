@@ -46,7 +46,8 @@ void SecureWrapper::shutdown()
 
 	while ((result = SSL_shutdown(ssl.get())) < 0)
 	{
-		waitSocket(SSL_get_error(ssl.get(), result));
+		if (!waitSocket(SSL_get_error(ssl.get(), result)))
+			throw SSLError(fmt::format("Could not shutdown SSL connection. {}", sslErrorString()));
 	}
 }
 
@@ -59,7 +60,8 @@ size_t SecureWrapper::read(std::byte *buffer, size_t length, std::chrono::millis
 
 	while ((received = readFunction(ssl.get(), buffer, static_cast<int>(length))) <= 0)
 	{
-		waitSocket(SSL_get_error(ssl.get(), received));
+		if (!waitSocket(SSL_get_error(ssl.get(), received)))
+			return 0;
 	}
 
 	return received;
@@ -73,7 +75,8 @@ size_t SecureWrapper::write(const std::byte *buffer, size_t length, std::chrono:
 
 	while ((sent = SSL_write(ssl.get(), buffer, static_cast<int>(length))) <= 0)
 	{
-		waitSocket(SSL_get_error(ssl.get(), sent));
+		if (!waitSocket(SSL_get_error(ssl.get(), sent)))
+			return 0;
 	}
 
 	return sent;
@@ -87,7 +90,8 @@ void SecureWrapper::accept()
 
 	while ((result = SSL_accept(ssl.get())) <= 0)
 	{
-		waitSocket(SSL_get_error(ssl.get(), result));
+		if (!waitSocket(SSL_get_error(ssl.get(), result)))
+			throw SSLError(fmt::format("Could not complete SSL handshake. {}", sslErrorString()));
 	}
 }
 
@@ -97,29 +101,18 @@ void SecureWrapper::release()
 	socket = {};
 }
 
-void SecureWrapper::waitSocket(int retCode) const
+bool SecureWrapper::waitSocket(int retCode) const
 {
-	auto waitFunction = [this](SocketEvent e) {
-		if ((socket.wait(e, std::chrono::milliseconds {defaultTimeout}) & e) == SocketEvent::None)
-			throw SSLError("Could not accept secure connection. Wait timeout expired.");
+	auto waitFunction = [this](SocketEvent e) -> bool {
+		return (socket.wait(e, std::chrono::milliseconds {defaultTimeout}) & e) != SocketEvent::None;
 	};
 
 	switch (retCode)
 	{
-		case SSL_ERROR_WANT_READ:
-		{
-			waitFunction(SocketEvent::ReadyRead);
+		case SSL_ERROR_WANT_READ: return waitFunction(SocketEvent::ReadyRead);
+		case SSL_ERROR_WANT_WRITE: return waitFunction(SocketEvent::ReadyWrite);
 
-			break;
-		}
-		case SSL_ERROR_WANT_WRITE:
-		{
-			waitFunction(SocketEvent::ReadyWrite);
-
-			break;
-		}
-
-		default: throw SSLError("Could not accept secure connection. Unknown return code.");
+		default: return false;
 	}
 }
 
